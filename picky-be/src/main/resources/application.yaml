@@ -23,3 +23,23 @@ spring:
     redis:
       host: ${SPRING_REDIS_HOST}
       port: ${SPRING_REDIS_PORT}
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: "89436861621-nkkljkj1to3m7j2dl3v4kde6pja9s5p7.apps.googleusercontent.com"
+            client-secret: "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"
+            scope: openid, email, profile
+            redirect-uri: "http://localhost:8080/login/oauth2/code/google"
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+
+jwt:
+  secret: iQWWa9DnaANYkLCRPccRChAeuQt7owLnAwucLKCxR3A=
+  issuer: picky
+  access-token-validity-seconds: 1800
+  refresh-token-validity-seconds: 1209600
