@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../lib/api';
 import Box from '../components/Box';
 import { User, Bookmark, Palette, Bell, Tag, Shield, Plus, X, Brain } from 'lucide-react';
 import Button from '../components/Button';
@@ -34,6 +35,7 @@ const initialCategories = [
 const MyPage = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [nickname, setNickname] = useState("사용자");
+  const [profileImage, setProfileImage] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState('robot');
   const [notificationInterval, setNotificationInterval] = useState(30);
   const [categories, setCategories] = useState(initialCategories);
@@ -43,6 +45,33 @@ const MyPage = ({ onClose }) => {
   const [quizSearchQuery, setQuizSearchQuery] = useState('');
   const [selectedNewsCategory, setSelectedNewsCategory] = useState('all'); // New state for news category filter
   const [selectedQuizCategory, setSelectedQuizCategory] = useState('all'); // New state for quiz category filter
+  const [popupSettings, setPopupSettings] = useState({
+    news: true,
+    quiz: true,
+    knowledge: true,
+  });
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const accessToken = localStorage.getItem('accessToken');
+      if (accessToken) {
+        try {
+          const response = await api.get('/api/users/me', {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            }
+          });
+          const userData = response.data.data;
+          setNickname(userData.nickname);
+          setProfileImage(userData.profileImage);
+        } catch (error) {
+          console.error('Failed to fetch user data', error);
+        }
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const handleCategoryChange = (categoryId) => {
     setCategories(prev =>
@@ -97,7 +126,11 @@ const MyPage = ({ onClose }) => {
             <Box>
               <h3 className="text-lg font-semibold text-gray-800 mb-4">프로필 정보</h3>
               <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center text-white text-3xl font-bold">{nickname.charAt(0)}</div>
+                {profileImage ? (
+                  <img src={profileImage} alt="Profile" className="w-20 h-20 rounded-full" />
+                ) : (
+                  <div className="w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center text-white text-3xl font-bold">{nickname.charAt(0)}</div>
+                )}
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">닉네임</label>
                   <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
@@ -121,6 +154,24 @@ const MyPage = ({ onClose }) => {
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Bell className="w-5 h-5 mr-2 text-blue-600" />알림 설정</h3>
               <label className="block text-sm font-medium text-gray-700 mb-2">알림 간격: {notificationInterval}분</label>
               <input type="range" min="10" max="120" step="10" value={notificationInterval} onChange={(e) => setNotificationInterval(e.target.value)} className="w-full" />
+            </Box>
+
+            <Box>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Bell className="w-5 h-5 mr-2 text-blue-600" />팝업 설정</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="flex items-center">
+                  <input type="checkbox" id="popupNews" checked={popupSettings.news} onChange={() => setPopupSettings(prev => ({ ...prev, news: !prev.news }))} className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                  <label htmlFor="popupNews" className="ml-2 block text-sm text-gray-900">뉴스</label>
+                </div>
+                <div className="flex items-center">
+                  <input type="checkbox" id="popupQuiz" checked={popupSettings.quiz} onChange={() => setPopupSettings(prev => ({ ...prev, quiz: !prev.quiz }))} className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                  <label htmlFor="popupQuiz" className="ml-2 block text-sm text-gray-900">퀴즈</label>
+                </div>
+                <div className="flex items-center">
+                  <input type="checkbox" id="popupKnowledge" checked={popupSettings.knowledge} onChange={() => setPopupSettings(prev => ({ ...prev, knowledge: !prev.knowledge }))} className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                  <label htmlFor="popupKnowledge" className="ml-2 block text-sm text-gray-900">지식</label>
+                </div>
+              </div>
             </Box>
 
             <Box>
