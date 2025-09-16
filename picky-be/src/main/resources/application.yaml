@@ -5,7 +5,7 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:mysql:////${DB_HOST:db}:3306/picky?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://${DB_HOST:db}:3306/picky?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowLoadLocalInfile=true
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
 
@@ -45,3 +45,10 @@ jwt:
   issuer: picky
   access-token-validity-seconds: 1800
   refresh-token-validity-seconds: 1209600
+
+app:
+  seed:
+    csv-path: ${APP_SEED_CSV_PATH:/app/data/quiz_wiki_all.csv}
+    line-ending: CRLF
+    enabled: true
+    force: false  # true -> TRUNCATE 후 강제 재적재
