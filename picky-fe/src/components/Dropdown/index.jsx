@@ -1,7 +1,7 @@
 
 const Dropdown = ({ items, onClose }) => {
   return (
-    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+    <div className="absolute right-0 top-full w-48 bg-white rounded-md shadow-lg py-1 z-10">
       {items.map((item, index) => {
         const itemClasses = item.isDestructive
           ? 'text-red-600 hover:bg-red-50'
