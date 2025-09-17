@@ -11,6 +11,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import re
 from email.utils import parsedate_to_datetime
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime
+from .models import News
 
 # 프로젝트 루트를 Python path에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,24 +26,44 @@ load_dotenv()
 client_id = os.environ.get('CLIENT_ID')
 client_secret = os.environ.get('CLIENT_SECRET')
 
+CATEGORY_MAP = {
+    "정치": 1,
+    "사회": 2,
+    "경제": 3,
+    "기술": 4,
+    "과학": 5,
+    "건강": 6,
+    "교육": 7,
+    "문화": 8,
+    "연예": 9, 
+    "스포츠": 10,
+    "역사": 11,
+    "환경": 12,
+    "여행": 13,
+    "생활": 14,
+    "가정": 15,
+    "종교": 16,
+    "철학": 17,
+}
+
 CATEGORIES = {
     "정치": ["정부", "국회", "대통령", "총리", "장관", "선거", "정당", "외교", "국방", "안보"],
-    "사회": ["노동", "인권", "복지", "범죄", "경찰", "검찰", "재판", "사건사고", "안전", "재난"],
-    "경제": ["경제", "금융", "증권", "투자", "기업", "산업", "무역", "부동산", "건설", "물가"],
-    "기술": ["IT", "인공지능", "소프트웨어", "하드웨어", "반도체", "데이터", "통신", "로봇", "사이버보안", "블록체인"],
-    "과학": ["과학기술", "물리학", "화학", "생명과학", "지구과학", "천문학", "우주", "연구개발", "학술지", "실험"],
-    "건강": ["건강", "질병", "의료", "병원", "의약품", "백신", "영양", "운동", "정신건강", "공중보건"],
-    "교육": ["교육", "학교", "대학", "입시", "수능", "교사", "학생", "학원", "평생교육", "온라인교육"],
-    "문화": ["문화", "문학", "예술", "공연", "전시", "전통문화", "미술", "영화제", "언어", "축제"],
-    "연예": ["연예", "영화", "드라마", "음악", "K-pop", "아이돌", "방송", "예능", "게임", "웹툰"],
-    "스포츠": ["스포츠", "축구", "야구", "농구", "배구", "골프", "올림픽", "월드컵", "e스포츠", "체육"],
-    "역사": ["역사", "한국사", "세계사", "고대사", "근현대사", "고고학", "역사인물", "전쟁사", "문화재", "역사교육"],
-    "환경": ["환경", "기후변화", "탄소중립", "재활용", "에너지", "대기오염", "수질오염", "생태계", "자연재해", "환경정책"],
-    "여행": ["여행", "관광", "국내여행", "해외여행", "호텔", "항공", "교통", "맛집", "축제여행", "여행후기"],
-    "생활": ["생활", "요리", "패션", "뷰티", "인테리어", "반려동물", "취미", "운동", "원예", "라이프스타일"],
-    "가정": ["가정", "연애", "결혼", "신혼", "육아", "자녀교육", "가족관계", "부부", "부모", "청소년"],
-    "종교": ["종교", "기독교", "불교", "천주교", "이슬람", "종교행사", "종교갈등", "신앙", "명상", "영성"],
-    "철학": ["철학", "윤리", "인문학", "정치철학", "사회철학", "서양철학", "동양철학", "형이상학", "논리학", "존재론"]
+    # "사회": ["노동", "인권", "복지", "범죄", "경찰", "검찰", "재판", "사건사고", "안전", "재난"],
+    # "경제": ["경제", "금융", "증권", "투자", "기업", "산업", "무역", "부동산", "건설", "물가"],
+    # "기술": ["IT", "인공지능", "소프트웨어", "하드웨어", "반도체", "데이터", "통신", "로봇", "사이버보안", "블록체인"],
+    # "과학": ["과학기술", "물리학", "화학", "생명과학", "지구과학", "천문학", "우주", "연구개발", "학술지", "실험"],
+    # "건강": ["건강", "질병", "의료", "병원", "의약품", "백신", "영양", "운동", "정신건강", "공중보건"],
+    # "교육": ["교육", "학교", "대학", "입시", "수능", "교사", "학생", "학원", "평생교육", "온라인교육"],
+    # "문화": ["문화", "문학", "예술", "공연", "전시", "전통문화", "미술", "영화제", "언어", "축제"],
+    # "연예": ["연예", "영화", "드라마", "음악", "K-pop", "아이돌", "방송", "예능", "게임", "웹툰"],
+    # "스포츠": ["스포츠", "축구", "야구", "농구", "배구", "골프", "올림픽", "월드컵", "e스포츠", "체육"],
+    # "역사": ["역사", "한국사", "세계사", "고대사", "근현대사", "고고학", "역사인물", "전쟁사", "문화재", "역사교육"],
+    # "환경": ["환경", "기후변화", "탄소중립", "재활용", "에너지", "대기오염", "수질오염", "생태계", "자연재해", "환경정책"],
+    # "여행": ["여행", "관광", "국내여행", "해외여행", "호텔", "항공", "교통", "맛집", "축제여행", "여행후기"],
+    # "생활": ["생활", "요리", "패션", "뷰티", "인테리어", "반려동물", "취미", "운동", "원예", "라이프스타일"],
+    # "가정": ["가정", "연애", "결혼", "신혼", "육아", "자녀교육", "가족관계", "부부", "부모", "청소년"],
+    # "종교": ["종교", "기독교", "불교", "천주교", "이슬람", "종교행사", "종교갈등", "신앙", "명상", "영성"],
+    # "철학": ["철학", "윤리", "인문학", "정치철학", "사회철학", "서양철학", "동양철학", "형이상학", "논리학", "존재론"]
 }
 
 # ====== 본문 크롤링 후 전처리 =====
@@ -225,8 +249,7 @@ def process_keyword(category, keyword):
             print(f"  → 본문 추출 실패")
 
         published_at = parse_pub_date(item.get("pubDate"))
-
-        results.append({
+        result = {
             "category": category,
             "keyword": keyword,
             "title": clean_title(item["title"]),
@@ -234,9 +257,13 @@ def process_keyword(category, keyword):
             "originallink": item.get("originallink"),
             "body": body,
             "summary": summary,
-            "created_at": datetime.datetime.now().isoformat(),
+            "created_at": datetime.now().isoformat(),
             "published_at": published_at
-        })
+        }
+
+        save_to_db(result)
+
+        results.append(result)
 
     return results
 
@@ -254,15 +281,49 @@ def parse_pub_date(raw_pubdate):
     except Exception:
         return raw_pubdate
 
+# ====== db 저장 =======
+def save_to_db(item):
+    from core.mysql_db import SessionLocal
+    session = SessionLocal()
+    try:
+        category_id = CATEGORY_MAP.get(item["category"])
+        if not category_id:
+            print(f"⚠️ 카테고리 매핑 실패: {item['category']}")
+            return
+
+        pub_dt = None
+        if item.get("published_at"):
+            try:
+                pub_dt = datetime.fromisoformat(item["published_at"].replace("Z", "+00:00"))
+            except Exception:
+                pass
+
+        news = News(
+            category_id=category_id,
+            title=item["title"],
+            url=item["link"],
+            summary=item["summary"][:1000],
+            published_at=pub_dt
+        )
+        session.add(news)
+        session.commit()
+        print(f"✅ 저장 성공: {news.title[:30]}...")
+    except IntegrityError:
+        session.rollback()
+        print(f"⚠️ 중복으로 스킵: {item['link']}")
+    finally:
+        session.close()
+
+
 # ====== JSON 저장 ======
 def save_to_json(all_results, filename=None):
     """수집된 뉴스 데이터를 JSON 파일로 저장"""
     if filename is None:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"news_crawled_{timestamp}_2.json"
 
     json_data = {
-        "created_at": datetime.datetime.now().isoformat(),
+        "created_at": datetime.now().isoformat(),
         "total_count": len(all_results),
         "categories": list(set(r['category'] for r in all_results)),
         "news": all_results
