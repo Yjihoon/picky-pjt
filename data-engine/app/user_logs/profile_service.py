@@ -7,7 +7,7 @@ import asyncio
 import logging
 import numpy as np
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List
 from ..core.database import get_database, get_collection_name, get_url_hash
 from ..vectorization.embeddings import embedding_service
 from ..vectorization.qdrant_client import QdrantService

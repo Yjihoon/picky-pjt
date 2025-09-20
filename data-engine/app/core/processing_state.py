@@ -6,7 +6,6 @@ MongoDB를 이용한 사용자별 동시성 제어
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
-from bson import ObjectId
 from .database import get_database
 
 logger = logging.getLogger(__name__)

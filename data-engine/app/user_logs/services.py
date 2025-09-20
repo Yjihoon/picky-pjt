@@ -112,7 +112,7 @@ class HistoryDataService:
                     "collectionInfo": {
                         "totalItems": data.totalItems,
                         "collectedAt": data.collectedAt,
-                        "timeRange": data.timeRange
+                        "timeRange": data.timeRange or {}
                     },
                     
                     # 서버 메타데이터

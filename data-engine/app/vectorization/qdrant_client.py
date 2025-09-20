@@ -237,13 +237,14 @@ class QdrantService:
             print(f"[실패] 사용자 프로필 조회 실패 (collection: {collection_name}, user_id: {user_id}): {e}")
             return None
 
-    def search_similar_vectors(self, collection_name: str, query_vector: list[float], limit: int = 5):
+    async def search_similar_vectors(self, collection_name: str, query_vector: list[float], limit: int = 5, score_threshold: float = 0.0):
         """유사한 벡터 검색"""
         try:
             search_result = self.client.search(
                 collection_name=collection_name,
                 query_vector=query_vector,
-                limit=limit
+                limit=limit,
+                score_threshold=score_threshold
             )
             return search_result
         except Exception as e:
