@@ -6,7 +6,7 @@
 
 import asyncio
 import logging
-from typing import List, Dict
+from typing import Dict
 from app.vectorization.embeddings import embedding_service
 from app.vectorization.qdrant_client import QdrantService
 
@@ -21,7 +21,7 @@ CATEGORIES = [
     "환경", "여행", "생활", "가정", "종교", "철학"
 ]
 
-# 카테고리별 상세 키워드 (crawler.py 업데이트 버전 기준)
+# 카테고리별 상세 키워드
 CATEGORY_DESCRIPTIONS = {
     "정치": "정부 대통령 국회 총리 장관 선거 정당 외교 국방 안보 정책 개헌 비리",
     "사회": "노동 인권 복지 범죄 경찰 검찰 재판 사건사고 안전 재난 시위 갈등 실업",

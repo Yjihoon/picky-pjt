@@ -3,7 +3,6 @@
 GMS API를 활용한 벡터화
 """
 
-import asyncio
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
