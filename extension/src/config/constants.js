@@ -8,6 +8,11 @@ export const API_CONFIG = {
     TIMEOUT: 10000 // 10초
 };
 
+export const EXTENSION_CONFIG = {
+    ID: 'hfacdgjgkmaebgmmbfancbaeofhfijda',
+    ORIGIN: 'chrome-extension://hfacdgjgkmaebgmmbfancbaeofhfijda'
+};
+
 export const STORAGE_KEYS = {
     TRACKING_ENABLED: 'trackingEnabled'
 };
