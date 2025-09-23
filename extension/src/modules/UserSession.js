@@ -22,20 +22,6 @@ export class UserSession {
     console.log("👤 UserSession 인스턴스 생성");
   }
 
-  /**
-   * Chrome Identity API Promise wrapper - ID token 발급
-   */
-  getAuthTokenPromise(options) {
-    return new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken(options, (token) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve(token);
-        }
-      });
-    });
-  }
 
   /**
    * Chrome Identity API를 사용한 Google 사용자 정보 가져오기

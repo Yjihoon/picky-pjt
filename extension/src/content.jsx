@@ -72,26 +72,14 @@ function initializeEventListeners() {
   }
 
   // 페이지를 떠날 때 데이터 수집하고 background.js에 전송
-  window.addEventListener("beforeunload", async () => {
-    // 먼저 로그인 상태 확인
-    try {
-      const response = await chrome.runtime.sendMessage({ type: "GET_USER_ID" });
-
-      if (!response || !response.userId) {
-        console.log("⚠️ 로그인되지 않음 - 데이터 수집 건너뛰기");
-        return;
-      }
-
-      const data = dataCollector.collectData();
-      if (data) {
-        console.log("📤 페이지 떠나기 전 background에 데이터 전송");
-        sendMessageToBackground({
-          type: "BROWSING_DATA",
-          data: data,
-        });
-      }
-    } catch (error) {
-      console.log("⚠️ 로그인 상태 확인 실패 - 데이터 수집 건너뛰기");
+  window.addEventListener("beforeunload", () => {
+    const data = dataCollector.collectData();
+    if (data) {
+      console.log("📤 페이지 떠나기 전 background에 데이터 전송");
+      sendMessageToBackground({
+        type: "BROWSING_DATA",
+        data: data,
+      });
     }
   });
 

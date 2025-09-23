@@ -38,32 +38,6 @@ const historyCollector = new HistoryCollector(userSession);
 
 
 
-// 디버깅용 함수 노출
-globalThis.testHistoryCollection = async () => {
-  console.log("🔍 수동 히스토리 수집 시작");
-  await historyCollector.collectHistoryWithContent();
-};
-
-// 사용자 세션 디버깅 함수
-globalThis.checkUserSession = () => {
-  console.log("🔍 현재 사용자 세션 상태 확인");
-  userSession.printUserInfo("현재");
-  return userSession.getSessionInfo();
-};
-
-// 강제 로그인 테스트 함수
-globalThis.testLogin = async () => {
-  console.log("🧪 강제 로그인 테스트 시작");
-  const result = await userSession.loginWithGoogle();
-  console.log("🧪 로그인 테스트 결과:", result);
-
-  // 로그인 성공시 히스토리 수집 체크
-  if (result.success) {
-    await checkAndCollectHistory();
-  }
-
-  return result;
-};
 
 // 히스토리 수집 체크 및 실행 함수
 async function checkAndCollectHistory() {
@@ -88,13 +62,6 @@ async function checkAndCollectHistory() {
   }
 }
 
-// 자동 로그인 테스트 함수
-globalThis.testAutoLogin = async () => {
-  console.log("🧪 자동 로그인 테스트 시작");
-  const result = await userSession.tryAutoLogin();
-  console.log("🧪 자동 로그인 테스트 결과:", result);
-  return result;
-};
 
 // content.js와 popup에서 온 메시지 처리
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
@@ -102,7 +69,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
   // 브라우징 데이터 처리 (content.js에서)
   if (message.type === "BROWSING_DATA") {
-    // 토글 상태 확인 (Chrome Storage에서)
+    // 1. 로그인 상태 확인
+    const userId = userSession.getUserId();
+    if (!userId || !userSession.isUserAuthenticated()) {
+      console.log("⚠️ 로그인되지 않음 - 데이터 수집 건너뛰기");
+      sendResponse({ success: false, reason: "User not authenticated" });
+      return;
+    }
+
+    // 2. 토글 상태 확인 (Chrome Storage에서)
     const trackingStatus = await chrome.storage.sync.get(["trackingEnabled"]);
     const isTrackingEnabled = trackingStatus.trackingEnabled !== false;
 
@@ -112,10 +87,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       return;
     }
 
-    // 사용자 ID와 함께 데이터를 큐에 추가
-    const userId = userSession.getUserId();
+    // 3. 사용자 ID와 함께 데이터를 큐에 추가
     dataSender.addToQueue(message.data, userId);
-    console.log("✅ 데이터 큐에 추가 완료");
+    console.log("✅ 데이터 큐에 추가 완료 - userId:", userId);
 
     sendResponse({ success: true });
     return;
