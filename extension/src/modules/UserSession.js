@@ -350,8 +350,10 @@ export class UserSession {
         console.log("👤 Chrome 프로필 정보:", profileInfo);
 
         if (chrome.runtime.lastError) {
-          console.error("❌ Chrome 프로필 정보 조회 실패:", chrome.runtime.lastError);
-          reject(new Error(`Chrome 프로필 조회 실패: ${chrome.runtime.lastError.message}`));
+          console.log("ℹ️ Chrome 브라우저에 Google 로그인이 안되어 있음:", chrome.runtime.lastError.message);
+
+          // Chrome 로그인이 안되어도 기본 Chrome Identity API로 시도
+          this.performBasicIdentityLogin().then(resolve).catch(reject);
           return;
         }
 
@@ -433,7 +435,11 @@ export class UserSession {
         interactive: false,
         scopes: ['openid', 'email', 'profile']
       }, async (token) => {
-        if (token) {
+        // runtime.lastError 체크 (Chrome 로그인 안된 상태에서 발생하는 정상적인 오류)
+        if (chrome.runtime.lastError) {
+          console.log("ℹ️ 캐시된 토큰 없음 (Chrome 로그인 안됨):", chrome.runtime.lastError.message);
+          // interactive 모드로 계속 진행
+        } else if (token) {
           // 캐시된 토큰이 있으면 바로 사용
           console.log("✅ 캐시된 토큰 사용:", token.substring(0, 10) + "...");
           try {
@@ -454,8 +460,10 @@ export class UserSession {
           console.log("📥 Chrome Identity API Interactive 응답");
 
           if (chrome.runtime.lastError) {
-            console.error("❌ getAuthToken Interactive 오류:", chrome.runtime.lastError);
-            reject(new Error(`getAuthToken 실패: ${chrome.runtime.lastError.message}`));
+            console.log("⚠️ getAuthToken Interactive 실패, launchWebAuthFlow로 fallback:", chrome.runtime.lastError.message);
+
+            // Chrome 브라우저와 Google 계정이 완전히 분리된 상태 - launchWebAuthFlow 사용
+            this.performWebAuthFlow().then(resolve).catch(reject);
             return;
           }
 
@@ -720,6 +728,72 @@ export class UserSession {
       console.error("❌ 세션 저장 실패:", error);
       throw error;
     }
+  }
+
+  /**
+   * launchWebAuthFlow를 사용한 Google OAuth2 로그인
+   */
+  async performWebAuthFlow() {
+    return new Promise((resolve, reject) => {
+      console.log("🌐 launchWebAuthFlow로 Google OAuth2 시작");
+
+      // Google OAuth2 Authorization URL 생성
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/`;
+      const scope = 'openid email profile';
+
+      const authUrl = `https://accounts.google.com/oauth2/auth?` +
+        `client_id=${clientId}&` +
+        `response_type=token&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `scope=${encodeURIComponent(scope)}`;
+
+      console.log("🔗 OAuth2 URL:", authUrl);
+      console.log("🔗 Redirect URI:", redirectUri);
+
+      chrome.identity.launchWebAuthFlow({
+        url: authUrl,
+        interactive: true
+      }, async (responseUrl) => {
+        if (chrome.runtime.lastError) {
+          console.error("❌ launchWebAuthFlow 오류:", chrome.runtime.lastError);
+          reject(new Error(`WebAuthFlow 실패: ${chrome.runtime.lastError.message}`));
+          return;
+        }
+
+        if (!responseUrl) {
+          console.error("❌ launchWebAuthFlow에서 응답 URL 없음");
+          reject(new Error("Google 로그인 취소 또는 실패"));
+          return;
+        }
+
+        console.log("📍 launchWebAuthFlow 응답 URL:", responseUrl);
+
+        try {
+          // URL에서 access token 추출
+          const url = new URL(responseUrl);
+          const fragment = url.hash.substring(1);
+          const params = new URLSearchParams(fragment);
+          const accessToken = params.get('access_token');
+
+          if (!accessToken) {
+            console.error("❌ Access token을 응답 URL에서 찾을 수 없음");
+            reject(new Error("Access token을 받지 못했습니다"));
+            return;
+          }
+
+          console.log("✅ Access token 추출 성공:", accessToken.substring(0, 10) + "...");
+
+          // 백엔드에 access token 전달해서 JWT로 교환
+          const result = await this.exchangeAccessTokenForJWT(accessToken);
+          resolve(result);
+
+        } catch (error) {
+          console.error("❌ launchWebAuthFlow 처리 실패:", error);
+          reject(error);
+        }
+      });
+    });
   }
 
   /**
