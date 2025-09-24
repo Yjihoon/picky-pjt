@@ -11,7 +11,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop   # update create
+      ddl-auto: update   # update create
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
@@ -52,7 +52,11 @@ logging:
 
 app:
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,chrome-extension://hfacdgjgkmaebgmmbfancbaeofhfijda}
+  oauth:
+    google:
+      web-client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+      chrome-extension-client-id: ${CHROME_EXTENSION_GOOGLE_CLIENT_ID}
   cookie:
     name: ${APP_COOKIE_NAME}
     domain: ${APP_COOKIE_DOMAIN}
@@ -68,3 +72,11 @@ app:
     force: false  # true -> TRUNCATE 후 강제 재적재
     categories:
       enabled: true
+  mongodb:
+    browsing-prefix: ${MONGO_BROWSING_PREFIX:browsing}
+    history-prefix: ${MONGO_HISTORY_PREFIX:history}
+  fact-seed:
+    enabled: true
+    csv-path: /app/data/facts.csv   # 컨테이너 내부 경로
+    line-ending: CRLF                              # 또는 LF
+    force: false                                   # true면 TRUNCATE 후 재적재
