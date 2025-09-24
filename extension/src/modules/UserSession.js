@@ -12,6 +12,7 @@ export class UserSession {
     this.userInfo = null;
     this.jwt = null;
     this.refreshToken = null;
+    this.isLoginInProgress = false; // 로그인 진행 중 플래그
     this.BACKEND_URL = BACKEND_URL; // BACKEND_URL을 인스턴스 변수로 설정
 
     console.log("👤 UserSession 인스턴스 생성");
@@ -132,6 +133,9 @@ export class UserSession {
     try {
       console.log("🔐 Chrome Identity API를 사용한 Google 로그인 시작");
 
+      // 로그인 진행 중 플래그 설정
+      this.isLoginInProgress = true;
+
       // 1. Chrome Identity API로 토큰 받고 백엔드 API 호출
       const authResult = await this.performIdentityLogin();
 
@@ -162,6 +166,9 @@ export class UserSession {
       }
 
       return { success: false, error: error.message || "로그인 중 오류가 발생했습니다." };
+    } finally {
+      // 로그인 진행 중 플래그 해제
+      this.isLoginInProgress = false;
     }
   }
 

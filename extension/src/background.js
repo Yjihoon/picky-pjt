@@ -123,9 +123,22 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       return;
     }
 
-    // 자동 로그인 시도
+    // 자동 로그인 시도 (이미 인증된 상태라면 건너뛰기)
     (async () => {
       try {
+        // 현재 인증 상태 또는 로그인 진행 상태 확인
+        if (userSession.isAuthenticated) {
+          console.log("🎯 이미 인증된 상태 - 자동 로그인 건너뛰기");
+          sendResponse({ success: true, sessionInfo: { success: true, source: "existing" } });
+          return;
+        }
+
+        if (userSession.isLoginInProgress) {
+          console.log("🎯 로그인 진행 중 - 자동 로그인 건너뛰기");
+          sendResponse({ success: false, reason: "login_in_progress" });
+          return;
+        }
+
         const sessionInfo = await userSession.tryAutoLogin();
         console.log("🎯 Content Script 트리거 자동 로그인 결과:", sessionInfo);
 
