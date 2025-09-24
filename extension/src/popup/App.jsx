@@ -195,12 +195,19 @@ function App() {
   // 로그아웃
   const handleLogout = async () => {
     try {
+      // 진행 중인 로그인 프로세스 정리
+      if (window.loginSuccessCallback) {
+        window.loginSuccessCallback = null;
+      }
+      setIsLoggingIn(false);
+      setLoginError("");
+
       await sendMessage({ type: 'LOGOUT' });
       setIsAuthenticated(false);
       setUserInfo(null);
-      setLoginError("");
     } catch (error) {
       console.error("로그아웃 실패:", error);
+      setIsLoggingIn(false); // 오류 발생 시에도 로딩 상태 해제
     }
   };
 
