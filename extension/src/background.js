@@ -57,8 +57,8 @@ async function ensureDefaults() {
 import { DataSender } from "./modules/DataSender.js";
 import { UserSession } from "./modules/UserSession.js";
 import { HistoryCollector } from "./modules/HistoryCollector.js";
-import { initApi } from "./modules/AuthenticatedApi.js";
-
+import { initApi, authFetch } from "./modules/AuthenticatedApi.js";
+import { BACKEND_URL } from "./config/env.js";
 console.log("🔧 Background script 시작");
 
 const dataSender = new DataSender();
@@ -262,11 +262,80 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     return false;
   }
 
-  // --- [추가] UI 관련 메시지 핸들러 ---
-  if (message.type === 'GET_SETTINGS') {
-    chrome.storage.sync.get(null, (settings) => {
-      sendResponse({ success: true, settings });
-    });
+// --- [추가] UI 관련 메시지 핸들러 ---
+  if (message.type === 'GET_USER_SETTINGS') {
+    (async () => {
+      const result = await fetchUserSettings();
+      if (result.success) {
+        // 백엔드 DTO를 chrome.storage 구조에 맞게 변환
+        const settingsToStore = {
+          isCharacterOn: result.settings.avatarCode !== 'disabled', // 'disabled' 코드가 캐릭터 off를 의미한다고 가정
+          isNotificationsOn: result.settings.notifyEnabled,
+          notificationItems: {
+            news: result.settings.newsEnabled,
+            quiz: result.settings.quizEnabled,
+            fact: result.settings.factEnabled,
+          },
+          notificationInterval: result.settings.notifyInterval,
+        };
+        await chrome.storage.sync.set(settingsToStore);
+        sendResponse({ success: true, settings: settingsToStore });
+      } else {
+        // 실패 시 기존 storage 값이라도 보내주기
+        const localSettings = await chrome.storage.sync.get(null);
+        sendResponse({ success: false, error: result.error, settings: localSettings });
+      }
+    })();
+    return true; // 비동기 응답
+  }
+
+  if (message.type === 'UPDATE_USER_SETTINGS') {
+    (async () => {
+      // (주석) 팝업 UI는 변경된 일부 설정만 보내므로,
+      //       백엔드에 저장하기 전에 먼저 현재 전체 설정을 불러와야 합니다.
+      // 1. 백엔드에서 현재 전체 설정을 가져옵니다.
+      const currentStateResult = await fetchUserSettings();
+      if (!currentStateResult.success) {
+        console.error("업데이트 전 현재 설정을 가져오는 데 실패했습니다.");
+        sendResponse({ success: false, error: "현재 설정을 가져올 수 없습니다." });
+        return;
+      }
+      
+      // 2. 가져온 전체 설정에 팝업에서 변경된 내용을 병합하여 완전한 요청 DTO를 만듭니다.
+      const fullSettings = currentStateResult.settings;
+      const changes = message.settings; // 팝업에서 보낸 부분적인 변경사항
+      
+      // (주석) 백엔드의 UserSettingsUpdateRequestDto 형식에 맞춰 페이로드(전송 데이터)를 구성합니다.
+      //       팝업에서 보내지 않은 값은 기존 값(fullSettings)을 그대로 사용합니다.
+      const payload = {
+        avatarCode: fullSettings.avatarCode, // (주석) 캐릭터 종류는 팝업에서 변경하지 않으므로 기존 값 사용
+        blockedDomains: fullSettings.blockedDomains, // (주석) 수집 제외 사이트도 팝업에서 변경하지 않으므로 기존 값 사용
+        notifyEnabled: changes.isNotificationsOn ?? fullSettings.notifyEnabled,
+        newsEnabled: changes.notificationItems?.news ?? fullSettings.newsEnabled,
+        quizEnabled: changes.notificationItems?.quiz ?? fullSettings.quizEnabled,
+        factEnabled: changes.notificationItems?.fact ?? fullSettings.factEnabled,
+        notifyInterval: changes.notificationInterval ?? fullSettings.notifyInterval,
+      };
+
+      // (주석) '캐릭터 표시' 토글은 백엔드의 'avatarCode' 필드와 연결됩니다.
+      //       '캐릭터 표시'를 끄면 avatarCode를 'disabled'로 설정하여 비활성화를 알립니다.
+      //       다시 켤 때는 기본값('default')으로 설정합니다. (백엔드는 'default' 코드를 알고 있어야 함)
+      if (changes.isCharacterOn !== undefined) {
+        payload.avatarCode = changes.isCharacterOn ? (fullSettings.avatarCode !== 'disabled' ? fullSettings.avatarCode : 'default') : 'disabled';
+      }
+
+      // 3. 완성된 페이로드로 백엔드에 업데이트를 요청합니다.
+      const updateResult = await updateUserSettings(payload);
+
+      // 4. 백엔드 업데이트가 성공하면, 로컬 스토리지 캐시도 업데이트합니다.
+      if (updateResult.success) {
+        const currentLocalSettings = await chrome.storage.sync.get(null);
+        const newLocalSettings = {...currentLocalSettings, ...changes};
+        await chrome.storage.sync.set(newLocalSettings);
+      }
+
+      sendResponse(updateResult);
+    })();
     return true; // 비동기 응답
   }
 
@@ -275,6 +344,46 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     return; // 동기 응답
   }
 });
+
+// --- API 연동 함수 ---
+async function fetchUserSettings() {
+  if (!userSession.isUserAuthenticated()) {
+    return { success: false, reason: "unauthenticated" };
+  }
+  try {
+    const response = await authFetch(`${BACKEND_URL}/api/users/me/settings`);
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    const result = await response.json();
+    return { success: true, settings: result.data };
+  } catch (error) {
+    console.error("Failed to fetch user settings:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function updateUserSettings(settings) {
+  if (!userSession.isUserAuthenticated()) {
+    return { success: false, reason: "unauthenticated" };
+  }
+  try {
+    const response = await authFetch(`${BACKEND_URL}/api/users/me/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    const result = await response.json();
+    return { success: true, settings: result.data };
+  } catch (error) {
+    console.error("Failed to update user settings:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 
 // 30초마다 큐에 있는 데이터들을 서버로 전송
 setInterval(async () => {
