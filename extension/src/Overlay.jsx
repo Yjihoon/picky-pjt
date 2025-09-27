@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, XCircle, ExternalLink, Bookmark, X, Pin, PinOff } from 'lucide-react';
 import { shimejiData } from './shimeji-data.js';
 import { evaluateCondition, evaluateValue } from './condition-parser.js';
-// import { authFetch } from './modules/AuthenticatedApi.js'; // 주석 처리
-// import { BACKEND_URL } from './config/env.js'; // 주석 처리
+import { authFetch } from './modules/AuthenticatedApi.js';
+import { BACKEND_URL } from './config/env.js';
 
 
 /**
@@ -152,8 +152,8 @@ function Overlay() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [hasNotification, setHasNotification] = useState(false);
   const [recommendation, setRecommendation] = useState(null); // [신규] 추천 데이터 상태
-  const [_selectedAnswer, setSelectedAnswer] = useState(null); // [신규] 사용자가 선택한 퀴즈 답변
   const [showQuizResult, setShowQuizResult] = useState(false);
+  const [quizResult, setQuizResult] = useState(null); // 퀴즈 채점 결과
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [activeIE, setActiveIE] = useState(null); // 현재 선택된 웹페이지 요소를 저장합니다.
   const [thrownIEs, setThrownIEs] = useState([]); // [2025-09-16 Cline] 던져진 요소들을 관리합니다.
@@ -803,6 +803,7 @@ function Overlay() {
     setIsPopupOpen(true);
     setHasNotification(false);
     setShowQuizResult(false);
+    setQuizResult(null); // 팝업 열 때 결과 초기화
     // 팝업을 열었음을 백그라운드에 알림 (피드백)
     sendMessageToBackground({
       type: 'ACKNOWLEDGE_RECOMMENDATION',
@@ -825,19 +826,26 @@ function Overlay() {
   // [신규] 퀴즈 답변 핸들러 (백엔드 직접 통신)
   const handleQuizAnswer = async (answer) => {
     if (!recommendation || recommendation.contentType !== 'QUIZ') return;
-    setSelectedAnswer(answer);
+    setShowQuizResult(true); // 먼저 UI를 결과 화면으로 전환
+
     try {
-      // API 직접 호출 (authFetch 사용 필요)
-      // const response = await authFetch(`${BACKEND_URL}/api/quizzes/${recommendation.contentId}/answer`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ userAnswer: answer }),
-      // });
-      // const result = await response.json();
-      // setQuizResult(result.data);
-      setShowQuizResult(true);
+      const response = await authFetch(`${BACKEND_URL}/api/quizzes/${recommendation.contentId}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userAnswer: answer }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setQuizResult(result.data); // API 결과를 상태에 저장
+
     } catch (error) {
       console.error("퀴즈 답변 제출 실패:", error);
+      // 에러 발생 시 간단한 결과 객체 생성
+      setQuizResult({ isCorrect: false, explanation: "오류가 발생했습니다. 잠시 후 다시 시도해주세요." });
     }
   };
   
@@ -927,14 +935,26 @@ function Overlay() {
                     <button onClick={() => handleQuizAnswer(false)} className="flex-1 bg-red-100 text-red-700 hover:bg-red-200 p-2 rounded-md">X (틀림)</button>
                   </div>
                 ) : (
-                  <div className={`p-2 rounded-md bg-gray-100`}>
-                    <p className="text-xs text-gray-600 mb-2">답변이 제출되었습니다. 결과는 대시보드에서 확인해주세요.</p>
-                    <div className="flex justify-end items-center text-xs text-gray-500">
-                      <button onClick={() => handleScrap(recommendation.contentId)} className="flex items-center gap-1 hover:text-purple-600">
-                        <Bookmark size={12} /> 스크랩
-                      </button>
+                  quizResult ? (
+                    <div className={`p-2 rounded-md ${quizResult.isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        {quizResult.isCorrect ? <CheckCircle size={16} className="text-green-600" /> : <XCircle size={16} className="text-red-600" />}
+                        <span className="font-bold">{quizResult.isCorrect ? '정답입니다!' : '오답입니다!'}</span>
+                      </div>
+                      {!quizResult.isCorrect && (
+                        <p className="text-xs text-gray-600 mb-2">{quizResult.explanation}</p>
+                      )}
+                      <div className="flex justify-end items-center text-xs text-gray-500">
+                        <button onClick={() => handleScrap(recommendation.contentId)} className="flex items-center gap-1 hover:text-purple-600">
+                          <Bookmark size={12} /> 스크랩
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-2 rounded-md bg-gray-100 text-center">
+                      <p className="text-xs text-gray-600">채점 중...</p>
+                    </div>
+                  )
                 )}
               </div>
             )}

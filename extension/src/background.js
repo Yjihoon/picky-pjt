@@ -528,7 +528,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // 설정값이 변경될 때 알람을 재설정하는 함수
 async function resetAlarm() {
   const settings = await chrome.storage.sync.get(['notificationInterval', 'isNotificationsOn']);
-  const interval = settings.notificationInterval || 30;
+  // const interval = settings.notificationInterval || 30;
   const isOn = settings.isNotificationsOn !== false;
 
   await chrome.alarms.clear(ALARM_NAME);
@@ -536,10 +536,10 @@ async function resetAlarm() {
 
   if (isOn) {
     chrome.alarms.create(ALARM_NAME, {
-      delayInMinutes: 1, // 처음엔 1분 뒤에 시작
-      periodInMinutes: interval
+      delayInMinutes: 0.5, // 처음엔 0.5분 뒤에 시작
+      periodInMinutes: 1
     });
-    console.log(`✨ ${interval}분 간격으로 새 알람 설정 완료.`);
+    console.log(`✨ 1분 간격으로 새 알람 설정 완료.`);
   } else {
     console.log('🚫 알림이 비활성화되어 알람을 설정하지 않습니다.');
   }
