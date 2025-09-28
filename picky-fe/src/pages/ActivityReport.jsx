@@ -6,6 +6,7 @@ import { Globe, Clock, TrendingUp, Users, AlertCircle, Loader } from 'lucide-rea
 import api from '../lib/api';
 
 const BAR_COLORS = ['#ff914d', '#ffd5ba'];
+const RANK_COLORS = ['bg-amber-400', 'bg-slate-400', 'bg-orange-400', 'bg-sky-400', 'bg-indigo-400'];
 
 const mockData = {
   todayStats: [
@@ -60,7 +61,7 @@ const renderActivityReportPieLabel = ({ cx, cy, midAngle, outerRadius, percent, 
 
   return (
     <text x={x} y={y} fill={fill} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="12px">
-      {`${name} (${formatTime(Math.round(value / 60))}) ${(percent * 100).toFixed(0)}%`}
+      {`${name} ${(percent * 100).toFixed(0)}%`}
     </text>
   );
 };
@@ -290,7 +291,7 @@ const ActivityReport = () => {
             {domainStats.slice(0, 5).map((site, index) => (
               <div key={site.domain} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm flex-shrink-0">
+                                    <div className={`w-8 h-8 ${RANK_COLORS[index]} text-white rounded-full flex items-center justify-center text-sm flex-shrink-0`}>
                     {index + 1}
                   </div>
                   <div>

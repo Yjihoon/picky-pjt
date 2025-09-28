@@ -50,7 +50,8 @@ const CATEGORY_COLOR_MAP = {
   '종교': 'bg-violet-600 text-white',
   '철학': 'bg-gray-600 text-white',
 };
-const DEFAULT_CATEGORY_COLOR = 'bg-gray-500 text-white'; // Fallback for unknown categories
+const DEFAULT_CATEGORY_COLOR = 'bg-gray-500 text-white';
+const RANK_COLORS = ['bg-amber-400', 'bg-slate-400', 'bg-orange-400', 'bg-sky-400', 'bg-indigo-400']; // Fallback for unknown categories
 
 const getCategoryColorClass = (categoryName) => {
   return CATEGORY_COLOR_MAP[categoryName] || DEFAULT_CATEGORY_COLOR;
@@ -310,8 +311,7 @@ const CommunityTrends = () => {
             displayedTopSites.map((site, index) => (
               <div key={site.domain} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-4">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white bg-primary font-bold">{index + 1}</div>
-                  <div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${RANK_COLORS[index]} font-bold`}>{index + 1}</div>                  <div>
                     <h4 className="font-semibold">{site.domain}</h4>
                     <div className="text-sm text-gray-500">{site.visitCount}회 방문</div>
                   </div>
