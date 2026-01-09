@@ -262,11 +262,3 @@ new_vector = (old_vector * old_weight + new_vector * new_weight) / (old_weight +
 ### 4. **동적 콘텐츠 처리**
 - 원문 길이별 KoBART 요약 파라미터 자동 조정
 - 빔서치 vs 그리디 알고리즘 성능 최적화
-
----
-
-<div align="center">
-
-**Made with ❤️ by SSAFY 13기 특화 프로젝트 C102팀 PICKY-J**
-
-</div>
