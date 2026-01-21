@@ -12,7 +12,8 @@
 
 </div>
 
-🎥 **프로젝트 시연 영상** https://youtu.be/J_6tu6E4UZI
+# 🎥프로젝트 시연 영상 
+▶️ https://youtu.be/J_6tu6E4UZI
 
 ## 🚀 프로젝트 개요
 
